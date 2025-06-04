@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ur" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ملک ڈیری فارم - خالص دودھ، صحت مند زندگی</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter (for general text, though Urdu fonts might be different in practice) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Base font for general elements, Inter is a good fallback */
+        body {
+            font-family: 'Inter', sans-serif;
+            /* For Urdu text, a more suitable font like Jameel Noori Nastaleeq or Noto Nastaliq Urdu would be ideal if available via CDN */
+        }
+        /* Custom styles for better Urdu readability if specific fonts are not loaded */
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700; /* Bold for headings */
+        }
+        p {
+            line-height: 1.8; /* Better line spacing for readability */
+        }
+        /* Chatbot specific styles */
+        .chatbot-container {
+            position: fixed;
+            bottom: 20px;
+            left: 20px; /* Positioned to left for RTL layout */
+            width: 350px;
+            height: 500px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+            /* Initial state: hidden and scaled down */
+            transform: translateY(100%) scale(0.8);
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+            transform-origin: bottom left; /* Origin for the scale animation */
+        }
+        .chatbot-container.open {
+            /* Open state: visible and full scale */
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+        .chatbot-header {
+            background-color: #10B981; /* Green-700 */
+            color: white;
+            padding: 16px;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+        .chatbot-messages {
+            flex-grow: 1;
+            padding: 16px;
+            overflow-y: auto;
+            background-color: #f9fafb; /* Gray-50 */
+            display: flex;
+            flex-direction: column-reverse; /* Display new messages at the bottom */
+            /* Ensure messages scroll correctly in RTL */
+            direction: rtl;
+            text-align: right;
+        }
+        .message {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 18px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            /* Ensure text direction within messages is correct */
+            direction: rtl;
+            text-align: right;
+        }
+        .message.user {
+            background-color: #DCF8C6; /* Light green for user */
+            align-self: flex-start; /* User messages on the right in RTL due to flex-direction-reverse */
+            margin-left: auto; /* Push to right in RTL */
+        }
+        .message.bot {
+            background-color: #E2E8F0; /* Light gray for bot */
+            align-self: flex-end; /* Bot messages on the left in RTL due to flex-direction-reverse */
+            margin-right: auto; /* Push to left in RTL */
+        }
+        .chatbot-input-area {
+            display: flex;
+            padding: 16px;
+            border-top: 1px solid #E5E7EB; /* Gray-200 */
+            background-color: #ffffff;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+        .chatbot-input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #D1D5DB; /* Gray-300 */
+            border-radius: 25px;
+            margin-left: 8px; /* Space between input and button for RTL */
+            font-size: 1rem;
+            outline: none;
+            /* Ensure input text direction is correct */
+            direction: rtl;
+            text-align: right;
+        }
+        .chatbot-input:focus {
+            border-color: #10B981; /* Green-600 */
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        }
+        .chatbot-send-button {
+            background-color: #10B981; /* Green-600 */
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .chatbot-send-button:hover {
+            background-color: #059669; /* Green-700 */
+        }
+        .chatbot-toggle-button {
+            position: fixed;
+            bottom: 20px;
+            left: 20px; /* Positioned to left for RTL */
+            background-color: #10B981; /* Green-600 */
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            z-index: 1001;
+        }
+        .chatbot-toggle-button:hover {
+            transform: scale(1.1);
+        }
+        .loading-indicator {
+            text-align: center;
+            padding: 10px;
+            font-style: italic;
+            color: #6B7280; /* Gray-500 */
+            /* Ensure loading indicator text direction is correct */
+            direction: rtl;
+            text-align: right;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- نیویگیشن بار (Navigation Bar) -->
+    <header class="bg-white shadow-md py-4 sticky top-0 z-50">
+        <div class="container mx-auto px-4 flex justify-between items-center flex-wrap">
+            <div class="flex items-center space-x-2 rtl:space-x-reverse">
+                <!-- لوگو (Logo) -->
+                <img src="uploaded:1146662c-9b31-42fa-b6eb-8e5c26a461e6.jpg-2b32f125-b366-4750-abc6-c56bb35838b4" alt="ملک ڈیری فارم لوگو" class="rounded-full w-16 h-16 object-contain" onerror="this.src='https://placehold.co/64x64/A7F3D0/10B981?text=لوگو';">
+                <h1 class="text-3xl font-bold text-green-700">ملک ڈیری فارم</h1>
+            </div>
+            <nav class="mt-4 md:mt-0">
+                <ul class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-6 rtl:md:space-x-reverse text-lg">
+                    <li><a href="#home" class="text-gray-700 hover:text-green-600 transition duration-300">ہوم پیج</a></li>
+                    <li><a href="#about" class="text-gray-700 hover:text-green-600 transition duration-300">ہمارے بارے میں</a></li>
+                    <li><a href="#products" class="text-gray-700 hover:text-green-600 transition duration-300">مصنوعات</a></li>
+                    <li><a href="#reviews" class="text-gray-700 hover:text-green-600 transition duration-300">کسٹمر ریویوز</a></li>
+                    <li><a href="#contact" class="text-gray-700 hover:text-green-600 transition duration-300">رابطہ کریں</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- ہیرو سیکشن (Hero Section) -->
+    <section id="home" class="relative bg-green-100 text-center py-20 md:py-32 overflow-hidden rounded-b-lg">
+        <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('https://placehold.co/1920x800/A7F3D0/10B981?text=ڈیری+فارم+کا+منظر');">
+            <img src="https://placehold.co/1920x800/A7F3D0/10B981?text=ڈیری+فارم+کا+منظر" alt="ڈیری فارم کا منظر" class="hidden" onerror="this.src='https://placehold.co/1920x800/A7F3D0/10B981?text=ڈیری+فارم+کا+منظر'; this.classList.remove('hidden');">
+        </div>
+        <div class="relative z-10 container mx-auto px-4 bg-black bg-opacity-40 p-8 rounded-lg max-w-2xl">
+            <h2 class="text-5xl md:text-6xl font-extrabold text-white mb-4 leading-tight">ملک ڈیری فارم</h2>
+            <p class="text-2xl md:text-3xl text-white font-medium mb-8">"خالص دودھ، صحت مند زندگی"</p>
+            <a href="#products" class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-full shadow-lg transition duration-300 transform hover:scale-105">ہماری مصنوعات دیکھیں</a>
+        </div>
+    </section>
+
+    <!-- ہمارے بارے میں (About Us) -->
+    <section id="about" class="container mx-auto px-4 py-16 md:py-24">
+        <div class="bg-white p-8 md:p-12 rounded-lg shadow-xl">
+            <h2 class="text-4xl font-bold text-center text-green-700 mb-8">ہمارے بارے میں</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="text-lg leading-relaxed">
+                    <p class="mb-4">ملک ڈیری فارم ایک قابلِ اعتماد نام ہے جہاں صحت مند اور اعلیٰ نسل کے جانوروں کی خرید و فروخت کی جاتی ہے۔ ہم خاص طور پر حاملہ گائے، بھینس، بکرے، بکریاں اور دیگر فارم کے جانور فراہم کرتے ہیں۔ ہمارے جانور دیسی خوراک اور مکمل دیکھ بھال کے ساتھ پالے جاتے ہیں، تاکہ خریدار کو صحت مند، مطمئن اور پیداوار کے لیے تیار جانور ملے۔</p>
+                    <p class="mb-4">ہمارا مقصد ہے کہ پاکستان بھر میں فارم ہاؤس مالکان، کسان، اور ڈیری کاروبار کرنے والے افراد کو معیاری جانور مہیا کیے جائیں۔</p>
+                    <p class="mb-6">اگرچہ ہم دودھ کی فراہمی بھی کرتے ہیں، لیکن ہماری اصل شناخت جانوروں کی خالص نسل اور صحت ہے۔</p>
+
+                    <h3 class="text-2xl font-semibold text-gray-700 mb-4">🔰 ہماری خدمات:</h3>
+                    <ul class="list-disc list-inside space-y-2 mb-6">
+                        <li>حاملہ گائے اور بھینس کی فراہمی</li>
+                        <li>بکروں اور بکریوں کی سیل</li>
+                        <li>صحت مند بچھڑے، بکری کے بچے (Kids)</li>
+                        <li>ضرورت کے مطابق دودھ کی ہوم ڈیلیوری</li>
+                        <li>آن لائن اور فون پر آرڈر کی سہولت</li>
+                    </ul>
+
+                    <h3 class="text-2xl font-semibold text-gray-700 mb-4">💬 ہمارا مشن:</h3>
+                    <p class="mb-4">ہمارا مشن یہ ہے کہ پاکستان بھر میں فارمرز، فارم ہاؤس مالکان، اور ڈیری کاروبار سے وابستہ افراد کو صحت مند، خالص نسل اور پیداواری لحاظ سے بہترین جانور فراہم کیے جائیں — تاکہ ان کا کاروبار ترقی کرے اور انہیں اعلیٰ معیار کی خدمت میسر آئے۔</p>
+
+                    <h3 class="text-2xl font-semibold text-gray-700 mb-4">ہماری ترجیح یہ ہے کہ:</h3>
+                    <ul class="list-disc list-inside space-y-2 mb-6">
+                        <li>ہر خریدار کو اس کی ضرورت کے مطابق جانور مہیا کیا جائے</li>
+                        <li>جانوروں کی صحت، خوراک، اور دیکھ بھال میں کوئی سمجھوتہ نہ کیا جائے</li>
+                        <li>اعتماد، ایمانداری اور شفاف لین دین کو ترجیح دی جائے</li>
+                        <li>دودھ و دیگر خدمات میں معیاری انداز اختیار کیا جائے</li>
+                    </ul>
+
+                    <h3 class="text-2xl font-semibold text-gray-700 mb-4">💬 ہمارا یقین:</h3>
+                    <blockquote class="text-xl italic text-gray-600 border-r-4 border-green-600 pr-4 rtl:border-l-4 rtl:pl-4 rtl:pr-0">
+                        <p>“ہم وہ بیچتے ہیں، جو ہم خود رکھنا پسند کریں۔”</p>
+                    </blockquote>
+                </div>
+                <div class="flex justify-center items-center">
+                    <img src="https://placehold.co/600x400/A7F3D0/10B981?text=ہمارے+بارے+میں" alt="ہمارے بارے میں" class="rounded-lg shadow-md w-full max-w-md" onerror="this.src='https://placehold.co/600x400/A7F3D0/10B981?text=ہمارے+بارے+میں';">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- مصنوعات (Our Products) -->
+    <section id="products" class="bg-green-50 py-16 md:py-24">
+        <div class="container mx-auto px-4">
+            <h2 class="text-4xl font-bold text-center text-green-700 mb-12">ہماری مصنوعات</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- پروڈکٹ کارڈ: خالص بھینس کا دودھ -->
+                <div class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition duration-300 transform hover:scale-105">
+                    <img src="https://placehold.co/400x200/A7F3D0/10B981?text=بھینس+کا+دودھ" alt="خالص بھینس کا دودھ" class="w-full h-48 object-cover rounded-md mb-4" onerror="this.src='https://placehold.co/400x200/A7F3D0/10B981?text=بھینس+کا+دودھ';">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-2">خالص بھینس کا دودھ</h3>
+                    <p class="text-green-600 text-xl font-bold mb-4">قیمت: 250 روپے/لیٹر</p>
+                    <button class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition duration-300">آرڈر کریں</button>
+                </div>
+                <!-- پروڈکٹ کارڈ: خالص گائے کا دودھ -->
+                <div class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition duration-300 transform hover:scale-105">
+                    <img src="https://placehold.co/400x200/A7F3D0/10B981?text=گائے+کا+دودھ" alt="خالص گائے کا دودھ" class="w-full h-48 object-cover rounded-md mb-4" onerror="this.src='https://placehold.co/400x200/A7F3D0/10B981?text=گائے+کا+دودھ';">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-2">خالص گائے کا دودھ</h3>
+                    <p class="text-green-600 text-xl font-bold mb-4">قیمت: 220 روپے/لیٹر</p>
+                    <button class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition duration-300">آرڈر کریں</button>
+                </div>
+                <!-- پروڈکٹ کارڈ: دیسی گھی -->
+                <div class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition duration-300 transform hover:scale-105">
+                    <img src="https://placehold.co/400x200/A7F3D0/10B981?text=دیسی+گھی" alt="دیسی گھی" class="w-full h-48 object-cover rounded-md mb-4" onerror="this.src='https://placehold.co/400x200/A7F3D0/10B981?text=دیسی+گھی';">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-2">دیسی گھی</h3>
+                    <p class="text-green-600 text-xl font-bold mb-4">قیمت: 3000 روپے/کلو</p>
+                    <button class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition duration-300">آرڈر کریں</button>
+                </div>
+                <!-- پروڈکٹ کارڈ: حاملہ گائے -->
+                <div class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition duration-300 transform hover:scale-105">
+                    <img src="https://placehold.co/400x200/A7F3D0/10B981?text=حاملہ+گائے" alt="حاملہ گائے" class="w-full h-48 object-cover rounded-md mb-4" onerror="this.src='https://placehold.co/400x200/A7F3D0/10B981?text=حاملہ+گائے';">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-2">حاملہ گائے</h3>
+                    <p class="text-green-600 text-xl font-bold mb-4">قیمت: رابطہ کریں</p>
+                    <button class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition duration-300">رابطہ کریں</button>
+                </div>
+                <!-- پروڈکٹ کارڈ: غیر حاملہ گائے -->
+                <div class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition duration-300 transform hover:scale-105">
+                    <img src="https://placehold.co/400x200/A7F3D0/10B981?text=غیر+حاملہ+گائے" alt="غیر حاملہ گائے" class="w-full h-48 object-cover rounded-md mb-4" onerror="this.src='https://placehold.co/400x200/A7F3D0/10B981?text=غیر+حاملہ+گائے';">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-2">غیر حاملہ گائے</h3>
+                    <p class="text-green-600 text-xl font-bold mb-4">قیمت: رابطہ کریں</p>
+                    <button class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition duration-300">رابطہ کریں</button>
+                </div>
+                <!-- پروڈکٹ کارڈ: بکرا (نر) -->
+                <div class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition duration-300 transform hover:scale-105">
+                    <img src="https://placehold.co/400x200/A7F3D0/10B981?text=بکرا" alt="بکرا (نر)" class="w-full h-48 object-cover rounded-md mb-4" onerror="this.src='https://placehold.co/400x200/A7F3D0/10B981?text=بکرا';">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-2">بکرا (نر)</h3>
+                    <p class="text-green-600 text-xl font-bold mb-4">قیمت: رابطہ کریں</p>
+                    <button class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition duration-300">رابطہ کریں</button>
+                </div>
+                <!-- پروڈکٹ کارڈ: بکری (مادہ) -->
+                <div class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition duration-300 transform hover:scale-105">
+                    <img src="https://placehold.co/400x200/A7F3D0/10B981?text=بکری" alt="بکری (مادہ)" class="w-full h-48 object-cover rounded-md mb-4" onerror="this.src='https://placehold.co/400x200/A7F3D0/10B981?text=بکری';">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-2">بکری (مادہ)</h3>
+                    <p class="text-green-600 text-xl font-bold mb-4">قیمت: رابطہ کریں</p>
+                    <button class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition duration-300">رابطہ کریں</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- کسٹمر ریویوز (Customer Reviews) -->
+    <section id="reviews" class="py-16 md:py-24">
+        <div class="container mx-auto px-4">
+            <h2 class="text-4xl font-bold text-center text-green-700 mb-12">کسٹمر ریویوز</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- ریویو 1 -->
+                <div class="bg-white p-6 rounded-lg shadow-md border border-green-200">
+                    <div class="flex items-center mb-4">
+                        <div class="text-yellow-400 text-xl">
+                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                        </div>
+                        <span class="font-semibold text-gray-700 mr-2 rtl:ml-2">احمد علی</span>
+                    </div>
+                    <p class="text-gray-700 leading-relaxed">"ملک ڈیری فارم کا دودھ واقعی خالص اور تازہ ہے۔ ہم کئی سالوں سے ان کی مصنوعات استعمال کر رہے ہیں اور ہمیشہ مطمئن رہتے ہیں۔"</p>
+                </div>
+                <!-- ریویو 2 -->
+                <div class="bg-white p-6 rounded-lg shadow-md border border-green-200">
+                    <div class="flex items-center mb-4">
+                        <div class="text-yellow-400 text-xl">
+                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+                        </div>
+                        <span class="font-semibold text-gray-700 mr-2 rtl:ml-2">فاطمہ خان</span>
+                    </div>
+                    <p class="text-gray-700 leading-relaxed">"ان کا دیسی دہی بہت مزیدار ہے! میں نے پہلے کبھی اتنا خالص دہی نہیں کھایا۔ ڈیلیوری سروس بھی بہت اچھی ہے۔"</p>
+                </div>
+                <!-- ریویو 3 -->
+                <div class="bg-white p-6 rounded-lg shadow-md border border-green-200 md:col-span-2">
+                    <div class="flex items-center mb-4">
+                        <div class="text-yellow-400 text-xl">
+                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                        </div>
+                        <span class="font-semibold text-gray-700 mr-2 rtl:ml-2">محمد عمران</span>
+                    </div>
+                    <p class="text-gray-700 leading-relaxed">"ان کا گھی بہت ہی اعلیٰ معیار کا ہے۔ ملک ڈیری فارم کی مصنوعات پر پورا بھروسہ ہے۔"</p>
+                </div>
+            </div>
+            <div class="text-center mt-12">
+                <a href="https://web.facebook.com/profile.php?id=100091706868169" target="_blank" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-300 transform hover:scale-105">
+                    <i class="fab fa-facebook mr-2 rtl:ml-2"></i> ہمیں فیس بک پر ریویو دیں
+                </a>
+                <a href="https://www.google.com/maps/search/?api=1&query=Malak+Dairy+Farm+Kache+157NB+Shah+Nikdar+Tehsil+Sillanwali+District+Sargodha" target="_blank" class="inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-300 transform hover:scale-105 mt-4 md:mt-0 md:mr-4 rtl:md:ml-4">
+                    <i class="fab fa-google mr-2 rtl:ml-2"></i> ہمیں گوگل پر ریویو دیں
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- فارم گیلری (Farm Gallery) - اضافی تجویز -->
+    <section id="gallery" class="bg-green-50 py-16 md:py-24">
+        <div class="container mx-auto px-4">
+            <h2 class="text-4xl font-bold text-center text-green-700 mb-12">فارم گیلری</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Placeholder images for the gallery with onerror for fallback -->
+                <img src="https://placehold.co/600x400/A7F3D0/10B981?text=فارم+گیلری+1" alt="گائے فارم میں" class="w-full h-64 object-cover rounded-lg shadow-md" onerror="this.src='https://placehold.co/600x400/A7F3D0/10B981?text=فارم+گیلری+1';">
+                <img src="https://placehold.co/600x400/A7F3D0/10B981?text=فارم+گیلری+2" alt="بھینسیں چراگاہ میں" class="w-full h-64 object-cover rounded-lg shadow-md" onerror="this.src='https://placehold.co/600x400/A7F3D0/10B981?text=فارم+گیلری+2';">
+                <img src="https://placehold.co/600x400/A7F3D0/10B981?text=فارم+گیلری+3" alt="دودھ دہنے کا منظر" class="w-full h-64 object-cover rounded-lg shadow-md" onerror="this.src='https://placehold.co/600x400/A7F3D0/10B981?text=فارم+گیلری+3';">
+                <img src="https://placehold.co/600x400/A7F3D0/10B981?text=فارم+گیلری+4" alt="فارم کا ایک اور نظارہ" class="w-full h-64 object-cover rounded-lg shadow-md" onerror="this.src='https://placehold.co/600x400/A7F3D0/10B981?text=فارم+گیلری+4';">
+                <img src="https://placehold.co/600x400/A7F3D0/10B981?text=فارم+گیلری+5" alt="تازہ دودھ کی بوتلیں" class="w-full h-64 object-cover rounded-lg shadow-md" onerror="this.src='https://placehold.co/600x400/A7F3D0/10B981?text=فارم+گیلری+5';">
+                <img src="https://placehold.co/600x400/A7F3D0/10B981?text=فارم+گیلری+6" alt="فارم کی عمارت" class="w-full h-64 object-cover rounded-lg shadow-md" onerror="this.src='https://placehold.co/600x400/A7F3D0/10B981?text=فارم+گیلری+6';">
+            </div>
+        </div>
+    </section>
+
+    <!-- رابطہ کریں (Contact Us) -->
+    <section id="contact" class="bg-white py-16 md:py-24">
+        <div class="container mx-auto px-4">
+            <h2 class="text-4xl font-bold text-center text-green-700 mb-12">رابطہ کریں</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="text-lg leading-relaxed space-y-6">
+                    <p class="flex items-center text-gray-700 text-xl"><i class="fas fa-phone-alt text-green-600 text-2xl mr-4 rtl:ml-4"></i> 📞 فون نمبرز:
+                        <a href="tel:+923441789728" class="hover:underline mr-2 rtl:ml-2">03441789728</a>،
+                        <a href="tel:+923137652007" class="hover:underline mr-2 rtl:ml-2">03137652007</a>،
+                        <a href="tel:+923041857828" class="hover:underline mr-2 rtl:ml-2">03041857828</a>
+                    </p>
+                    <p class="flex items-start text-gray-700 text-xl"><i class="fas fa-map-marker-alt text-green-600 text-2xl mr-4 rtl:ml-4"></i> 📍 پتہ: کچے 157NB شاہ نِکدر تحصیل سلانوالی ضلع سرگودھا</p>
+                    <p class="flex items-center text-gray-700 text-xl"><i class="fas fa-envelope text-green-600 text-2xl mr-4 rtl:ml-4"></i> 📧 ای میل: <a href="mailto:Malakdairyfarm@gmail.com" class="hover:underline mr-2 rtl:ml-2">Malakdairyfarm@gmail.com</a></p>
+                    <a href="https://wa.me/923137652007" target="_blank" class="inline-flex items-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300">
+                        <i class="fab fa-whatsapp text-2xl mr-3 rtl:ml-3"></i> 📱 واٹس ایپ بٹن
+                    </a>
+                </div>
+                <div class="flex justify-center">
+                    <!-- گوگل میپ لوکیشن (Google Map Location) -->
+                    <iframe
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3408.067341851214!2d72.7661001!3d31.4518385!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3922572b8d4f02a3%3A0x6a0c026b4d3f5e3f!2sKacha%20157%20NB%2C%20Shah%20Nikdar%2C%20Sillanwali%2C%20Sargodha%2C%20Punjab%2C%20Pakistan!5e0!3m2!1sen!2sus!4v1700000000000!5m2!1sen!2sus"
+                        width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+                        class="rounded-lg shadow-md w-full max-w-md"></iframe>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- نیوز لیٹر سبسکرپشن (Newsletter Subscription) - اضافی تجویز -->
+    <section id="newsletter" class="bg-green-700 text-white py-16 md:py-20 text-center">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4">نیوز لیٹر سبسکرپشن</h2>
+            <p class="text-xl md:text-2xl mb-8">"تازہ آفرز اور نئی مصنوعات کے لیے سبسکرائب کریں"</p>
+            <form class="max-w-xl mx-auto flex flex-col sm:flex-row gap-4">
+                <input
+                    type="email"
+                    placeholder="اپنا ای میل یہاں درج کریں"
+                    class="flex-grow p-4 rounded-full text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-400"
+                    required
+                >
+                <button type="submit" class="bg-white text-green-700 font-bold py-4 px-8 rounded-full shadow-lg hover:bg-gray-200 transition duration-300 transform hover:scale-105">
+                    سبسکرائب کریں
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- فوٹر (Footer) -->
+    <footer class="bg-gray-900 text-white py-8">
+        <div class="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center text-center md:text-right">
+            <p class="mb-4 md:mb-0 text-lg">© 2025 ملک ڈیری فارم - تمام حقوق محفوظ ہیں</p>
+            <div class="flex space-x-6 rtl:space-x-reverse text-2xl">
+                <a href="#" class="text-gray-400 hover:text-white transition duration-300"><i class="fab fa-facebook"></i></a>
+                <a href="#" class="text-gray-400 hover:text-white transition duration-300"><i class="fab fa-instagram"></i></a>
+                <a href="https://wa.me/923001234567" target="_blank" class="text-gray-400 hover:text-white transition duration-300"><i class="fab fa-whatsapp"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Chatbot Toggle Button -->
+    <button id="chatbot-toggle" class="chatbot-toggle-button">
+        💬
+    </button>
+
+    <!-- Chatbot Container -->
+    <div id="chatbot-container" class="chatbot-container">
+        <div class="chatbot-header">
+            <span>ملک ڈیری بوٹ</span>
+            <button id="chatbot-close" class="text-white text-2xl leading-none">×</button>
+        </div>
+        <div id="chatbot-messages" class="chatbot-messages">
+            <!-- Messages will be appended here -->
+            <div class="message bot">
+                <p>السلام علیکم! ملک ڈیری فارم میں خوش آمدید۔ میں آپ کی کیا مدد کر سکتا ہوں؟</p>
+            </div>
+        </div>
+        <div class="chatbot-input-area">
+            <input type="text" id="chatbot-input" class="chatbot-input" placeholder="اپنا سوال یہاں لکھیں...">
+            <button id="chatbot-send" class="chatbot-send-button">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const chatbotToggle = document.getElementById('chatbot-toggle');
+        const chatbotContainer = document.getElementById('chatbot-container');
+        const chatbotClose = document.getElementById('chatbot-close');
+        const chatbotMessages = document.getElementById('chatbot-messages');
+        const chatbotInput = document.getElementById('chatbot-input');
+        const chatbotSend = document.getElementById('chatbot-send');
+
+        // Toggle chatbot visibility
+        chatbotToggle.addEventListener('click', () => {
+            chatbotContainer.classList.toggle('open');
+        });
+
+        chatbotClose.addEventListener('click', () => {
+            chatbotContainer.classList.remove('open');
+        });
+
+        /**
+         * Adds a message to the chat window.
+         * @param {string} text - The message text.
+         * @param {string} sender - The sender of the message ('user' or 'bot').
+         */
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', sender);
+            messageDiv.innerHTML = `<p>${text}</p>`;
+            // Prepend to show new messages at the bottom due to flex-direction-reverse in CSS
+            chatbotMessages.prepend(messageDiv);
+        }
+
+        /**
+         * Sends a message to the AI (Gemini API) and displays the response.
+         * @param {string} prompt - The user's message to send to the AI.
+         */
+        async function sendMessageToAI(prompt) {
+            // Add a loading indicator while waiting for AI response
+            addMessage('...ٹائپ کر رہا ہے', 'bot loading-indicator');
+            const loadingMessage = chatbotMessages.querySelector('.loading-indicator');
+
+            // Construct chat history for the API call
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            const payload = { contents: chatHistory };
+            // API key is left empty; Canvas environment will provide it at runtime
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+
+                // Remove the loading indicator once response is received
+                if (loadingMessage) {
+                    loadingMessage.remove();
+                }
+
+                // Check if the AI response is valid and display it
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    addMessage(text, 'bot');
+                } else {
+                    // Handle cases where the AI response structure is unexpected
+                    addMessage('معذرت، میں آپ کے سوال کا جواب نہیں دے سکا۔ براہ کرم دوبارہ کوشش کریں۔', 'bot');
+                    console.error('AI response structure unexpected:', result);
+                }
+            } catch (error) {
+                // Handle API call errors
+                if (loadingMessage) {
+                    loadingMessage.remove();
+                }
+                addMessage('معذرت، ایک خرابی پیش آگئی۔ براہ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔', 'bot');
+                console.error('Error calling Gemini API:', error);
+            }
+        }
+
+        // Event listener for sending message on button click
+        chatbotSend.addEventListener('click', () => {
+            const userMessage = chatbotInput.value.trim();
+            if (userMessage) {
+                addMessage(userMessage, 'user');
+                sendMessageToAI(userMessage);
+                chatbotInput.value = ''; // Clear input field
+            }
+        });
+
+        // Event listener for sending message on Enter key press
+        chatbotInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                chatbotSend.click(); // Trigger the send button click
+            }
+        });
+    </script>
+</body>
+</html>
